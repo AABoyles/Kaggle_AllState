@@ -3,27 +3,20 @@
 import numpy as np
 import pandas as pd
 import feather
-from scipy.stats import skew, boxcox
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import cross_val_score, train_test_split
-from sklearn.metrics import mean_absolute_error
 import xgboost as xgb
 from bayes_opt import BayesianOptimization
 
 # Load Training Data
 train = feather.read_dataframe("temp/preparedtraining.feather")
-train_labels = np.array(train['log_loss'])
-train_ids = train['id'].values.astype(np.int32)
-
+train_labels = np.array(train['loss'])
 train.drop(train.columns[[-1,-2]], 1, inplace = True)
-
 d_train_full = xgb.DMatrix(train, label=train_labels)
 
 # if you're paranoid about overfitting, increase this.
 n_folds = 3
 
 # if you see metrics dropping precipitously until the end, increase this.
-n_rounds = 50
+n_rounds = 100
 
 def fitXGBoost(eta = .1, gamma = .5, min_child_weight = 4, colsample_bytree = .3, subsample = 1, max_depth = 6):
     model = xgb.cv({
@@ -44,7 +37,7 @@ bo = BayesianOptimization(fitXGBoost, {
     'min_child_weight': (1, 5),
     'colsample_bytree': (.01, 1),
     'subsample': (.5, 1),
-    'max_depth': (3, 10)
+    'max_depth': (3, 12)
 })
 
-bo.maximize()
+bo.maximize(init_points = 60, n_iter = 120)
