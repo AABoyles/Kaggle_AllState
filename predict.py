@@ -3,24 +3,36 @@
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+import feather
 
-n_rounds = 1000
+# Load Training Data
+train = feather.read_dataframe("temp/preparedtraining.feather")
+train_labels = np.array(train['log_loss'])
+train_ids = train['id'].values.astype(np.int32)
+train.drop(train.columns[[-1,-2]], 1, inplace = True)
+train_d = xgb.DMatrix(train, label=train_labels)
+
+# Load Test Data
+test = feather.read_dataframe("temp/preparedtest.feather")
+test_ids = test['id'].values.astype(np.int32)
+test_d = xgb.DMatrix(test)
+
+n_rounds = 100
 
 # Discovered by the hyperoptimize.py script
 params = {
     "colsample_bytree": 1,
-    "eta": .01,
-    "gamma": 1.7281,
-    "max_depth": 8,
+    "eta": .5,
+    "gamma": 1.7684,
+    "max_depth": 12,
     "min_child_weight": 5,
     "subsample": 1
 }
 
-clf_full = xgb.train(params, d_train_full, n_rounds, [(d_train_full, 'train')],
-    verbose_eval = False,)
+model = xgb.train(params, train_d, n_rounds, [(train_d, 'train')], verbose_eval = False,)
 
 # Write the Results
-result_full = pd.DataFrame(clf_full.predict(d_test), columns=['loss'])
-result_full["id"] = test_ids
-result_full = result_full.set_index("id")
-result_full.to_csv('outputs/hyperoptimizedxgb.csv', index=True, index_label='id')
+result = pd.DataFrame(model.predict(test_d), columns=['loss'])
+result["id"] = test_ids
+result = result.set_index("id")
+result.to_csv('outputs/hyperoptimizedxgb.csv', index=True, index_label='id')
