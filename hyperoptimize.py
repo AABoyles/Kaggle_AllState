@@ -11,21 +11,19 @@ import xgboost as xgb
 from bayes_opt import BayesianOptimization
 
 # Load Training Data
-train = feather.read_dataframe("temp/preparedtraining")
+train = feather.read_dataframe("temp/preparedtraining.feather")
+train_labels = np.array(train['log_loss'])
+train_ids = train['id'].values.astype(np.int32)
 
-# Load Test Data
-test = feather.read_dataframe("temp/preparedtest")
+train.drop(train.columns[[-1,-2]], 1, inplace = True)
 
-train_labels = np.array(train_raw['loss'])
-train_ids = train_raw['id'].values.astype(np.int32)
-test_ids = test_raw['id'].values.astype(np.int32)
+d_train_full = xgb.DMatrix(train, label=train_labels)
 
-d_train_full = xgb.DMatrix(x_train, label=train_labels)
-d_test = xgb.DMatrix(x_test)
-
-# enter the number of folds from xgb.cv
+# if you're paranoid about overfitting, increase this.
 n_folds = 3
-n_rounds = 100
+
+# if you see metrics dropping precipitously until the end, increase this.
+n_rounds = 50
 
 def fitXGBoost(eta = .1, gamma = .5, min_child_weight = 4, colsample_bytree = .3, subsample = 1, max_depth = 6):
     model = xgb.cv({
@@ -37,7 +35,7 @@ def fitXGBoost(eta = .1, gamma = .5, min_child_weight = 4, colsample_bytree = .3
         "subsample": subsample,
         "max_depth": int(max_depth),
         "early_stopping_rounds": 20
-        }, d_train_full, n_rounds, n_folds)
+        }, d_train_full, n_rounds, n_folds, metrics = ["mae"])
     return(-model.iloc[-1,0])
 
 bo = BayesianOptimization(fitXGBoost, {
