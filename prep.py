@@ -20,35 +20,29 @@ ntest = test.shape[0]
 
 features = train.columns
 
-# factorize categorical features
-for feat in [feat for feat in features if 'cat' in feat]:
-    a = train['log_loss'].groupby([train[feat]]).mean()
+# Replace Categorical Features with the Category's mean log loss
+features_categorical = [feat for feat in features if 'cat' in feat]
+
+for feat in features_categorical:
+    a = pd.DataFrame(train['log_loss'].groupby([train[feat]]).mean())
     a[feat] = a.index
-    train[feat] = pd.merge(left=train, right=a, how='left', on=feat)['log_loss']
+    train[feat] = pd.merge(left=train, right=a, how='left', on=feat)['log_loss_y']
     test[feat] = pd.merge(left=test, right=a, how='left', on=feat)['log_loss']
 
-features_numeric = train.dtypes[train.dtypes != "object"].index
+features_numeric = test.dtypes[test.dtypes != "object"].index
 
 # compute skew and do Box-Cox transformation
-# transform features with skew > 0.25 (this can be varied to find optimal value)
+# transform features with skew > 0.75 (this can be varied to find optimal value)
 features_skewed = train[features_numeric].apply(lambda x: skew(x.dropna()))
-features_skewed = features_skewed[features_skewed > 0.25]
+features_skewed = features_skewed[features_skewed > 0.75]
 for feat in features_skewed.index:
-    train[feat] = train[feat] + 1
-    train[feat], lam = boxcox(train[feat])
-    if feat in test.columns:
-        test[feat] = test[feat] + 1
-        test[feat], lam = boxcox(test[feat])
+    train[feat], lam = boxcox(train[feat] + 1)
+    test[feat] = boxcox(test[feat] + 1, lam)
 
-# Scale the Data
-scaler = StandardScaler().fit(train)
-train = scaler.transform(train)
-test = scaler.transform(test)
-
-# Split data back into the training and test sets
-train_labels = np.array(train['log_loss'])
-train_ids = train_raw['id'].values.astype(np.int32)
-test_ids = test_raw['id'].values.astype(np.int32)
+## Scale the Data
+#scaler = StandardScaler().fit(train)
+#train_scaled = scaler.transform(train)
+#test_scaled = scaler.transform(test)
 
 # Save the dataframes in files to be picked up by other scripts
 feather.write_dataframe(train, "temp/preparedtraining.feather")
