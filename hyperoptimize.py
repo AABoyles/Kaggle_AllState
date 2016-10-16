@@ -8,7 +8,7 @@ from bayes_opt import BayesianOptimization
 
 # Load Training Data
 train = feather.read_dataframe("temp/preparedtraining.feather")
-train_labels = np.array(train['loss'])
+train_labels = np.array(train['log_loss'])
 train.drop(train.columns[[-1,-2]], 1, inplace = True)
 d_train_full = xgb.DMatrix(train, label=train_labels)
 

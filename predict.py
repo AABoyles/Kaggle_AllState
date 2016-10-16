@@ -21,18 +21,18 @@ n_rounds = 100
 
 # Discovered by the hyperoptimize.py script
 params = {
-    "colsample_bytree": 1,
-    "eta": .5,
-    "gamma": 1.7684,
+    "colsample_bytree": .4928,
+    "eta": .1402,
+    "gamma": 2.6277,
     "max_depth": 12,
-    "min_child_weight": 5,
-    "subsample": 1
+    "min_child_weight": 1.05,
+    "subsample": .8433
 }
 
 model = xgb.train(params, train_d, n_rounds, [(train_d, 'train')], verbose_eval = False,)
 
 # Write the Results
-result = pd.DataFrame(model.predict(test_d), columns=['loss'])
+result = pd.DataFrame(np.exp(model.predict(test_d)), columns=['loss'])
 result["id"] = test_ids
 result = result.set_index("id")
 result.to_csv('outputs/hyperoptimizedxgb.csv', index=True, index_label='id')

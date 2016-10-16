@@ -13,29 +13,23 @@ train['log_loss'] = np.log(train['loss'])
 # Load Test Data
 test = pd.read_csv('data/test.csv', dtype={'id': np.int32})
 
+# compute skew and do Box-Cox transformation
+# transform features with skew > 0.25 (this can be varied to find optimal value)
+features_numeric = test.dtypes[test.dtypes != "object"].index
+features_skewed = train[features_numeric].apply(lambda x: skew(x.dropna()))
+features_skewed = features_skewed[features_skewed > 0.25]
+for feat in features_skewed.index:
+    train[feat], lam = boxcox(train[feat] + 1)
+    test[feat] = boxcox(test[feat] + 1, lam)
+
 # Replace Categorical Features with the Category's mean log loss
 features_categorical = [feat for feat in test.columns if 'cat' in feat]
 
 for feat in features_categorical:
-    a = pd.DataFrame(train['loss'].groupby([train[feat]]).mean())
+    a = pd.DataFrame(train['log_loss'].groupby([train[feat]]).mean())
     a[feat] = a.index
-    train[feat] = pd.merge(left=train, right=a, how='left', on=feat)['loss_y']
-    test[feat] = pd.merge(left=test, right=a, how='left', on=feat)['loss']
-
-features_numeric = test.dtypes[test.dtypes != "object"].index
-
-# compute skew and do Box-Cox transformation
-# transform features with skew > 0.75 (this can be varied to find optimal value)
-# features_skewed = train[features_numeric].apply(lambda x: skew(x.dropna()))
-# features_skewed = features_skewed[features_skewed > 0.75]
-# for feat in features_skewed.index:
-#     train[feat], lam = boxcox(train[feat] + 1)
-#     test[feat] = boxcox(test[feat] + 1, lam)
-
-## Scale the Data
-#scaler = StandardScaler().fit(train)
-#train_scaled = scaler.transform(train)
-#test_scaled = scaler.transform(test)
+    train[feat] = pd.merge(left=train, right=a, how='left', on=feat)['log_loss_y']
+    test[feat] = pd.merge(left=test, right=a, how='left', on=feat)['log_loss']
 
 # Save the dataframes in files to be picked up by other scripts
 feather.write_dataframe(train, "temp/preparedtraining.feather")
