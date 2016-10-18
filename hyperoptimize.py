@@ -13,10 +13,14 @@ train.drop(train.columns[[-1,-2]], 1, inplace = True)
 d_train_full = xgb.DMatrix(train, label=train_labels)
 
 # if you're paranoid about overfitting, increase this.
-n_folds = 3
+n_folds = 10
 
 # if you see metrics dropping precipitously until the end, increase this.
 n_rounds = 100
+
+def xg_eval_mae(yhat, dtrain):
+    y = dtrain.get_label()
+    return 'mae', mean_absolute_error(np.exp(y), np.exp(yhat))
 
 def fitXGBoost(eta = .1, gamma = .5, min_child_weight = 4, colsample_bytree = .3, subsample = 1, max_depth = 6):
     model = xgb.cv({
@@ -27,8 +31,9 @@ def fitXGBoost(eta = .1, gamma = .5, min_child_weight = 4, colsample_bytree = .3
         "colsample_bytree": colsample_bytree,
         "subsample": subsample,
         "max_depth": int(max_depth),
-        "early_stopping_rounds": 20
-        }, d_train_full, n_rounds, n_folds, metrics = ["mae"])
+        "early_stopping_rounds": 20,
+        "seed": 42
+        }, d_train_full, n_rounds, n_folds, feval = xg_eval_mae)
     return(-model.iloc[-1,0])
 
 bo = BayesianOptimization(fitXGBoost, {
